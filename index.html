@@ -1501,7 +1501,13 @@ const STATUS_DOT = {
 function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function daysBetween(a,b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
-function fmtDate(iso){ if(!iso) return '—'; const d = new Date(iso+'T00:00:00'); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+function fmtDate(iso){ if(!iso) return '—'; const plain = String(iso).slice(0,10); const d = new Date(plain+'T00:00:00'); return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'}); }
+// A planilha às vezes devolve datas como "2026-06-18T03:00:00.000Z" (célula de data do Sheets)
+// em vez de "2026-06-18" puro. Normaliza tudo para "YYYY-MM-DD" assim que os dados chegam.
+function normalizeDateFields(obj, fields){
+  fields.forEach(f=>{ if(obj[f]) obj[f] = String(obj[f]).slice(0,10); });
+  return obj;
+}
 
 /* ======================= PERSISTENCE ======================= */
 async function loadData(){
@@ -1509,8 +1515,8 @@ async function loadData(){
     try{
       const res = await fetch(CONFIG.SCRIPT_URL + '?action=all');
       const json = await res.json();
-      STATE.projects = json.projects || [];
-      STATE.tasks = json.tasks || [];
+      STATE.projects = (json.projects || []).map(p=>normalizeDateFields(p, ['inicioPlan','fimPlan','criadoEm']));
+      STATE.tasks = (json.tasks || []).map(t=>normalizeDateFields(t, ['inicioPlan','fimPlan','fimReal']));
       document.getElementById('configBanner').classList.add('hide');
     }catch(e){
       console.error('Falha ao carregar do Google Sheets, usando dados locais.', e);
